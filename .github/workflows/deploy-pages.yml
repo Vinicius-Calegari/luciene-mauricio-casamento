@@ -1,0 +1,59 @@
+name: Publicar site no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    env:
+      VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Baixar codigo
+        uses: actions/checkout@v6
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Conferir configuracao publica
+        run: |
+          test -n "$VITE_SUPABASE_URL" || { echo 'VITE_SUPABASE_URL ausente'; exit 1; }
+          test -n "$VITE_SUPABASE_ANON_KEY" || { echo 'VITE_SUPABASE_ANON_KEY ausente'; exit 1; }
+      - name: Preparar GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Gerar site
+        run: npm run build -- --base=/luciene-mauricio-casamento/
+      - name: Empacotar site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Publicar site
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,5 @@
+project_id = "luciene-mauricio-casamento"
+
+[functions.public-rsvp]
+# Public lookup uses a checked publishable app key, rate limiting, and expiring per-invitation tokens.
+verify_jwt = false
