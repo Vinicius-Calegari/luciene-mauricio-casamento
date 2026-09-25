@@ -23,6 +23,8 @@ Os cadastros são salvos no Supabase e consultados por todos os aparelhos. Convi
 
 A palavra-chave é validada pela Edge Function na busca e no envio da resposta, com limite de tentativas. O valor esperado não é enviado no JavaScript do site nem exibido no formulário. Para trocar a palavra, altere seu SHA-256 em `RSVP_KEYWORD_HASH` na função `public-rsvp` e publique a função novamente. Espaços no início/fim e diferenças entre maiúsculas e minúsculas são ignorados.
 
+O convite e a confirmação usam requisições públicas independentes da sessão do painel, com limite de 15 segundos incluindo a leitura da resposta. Se a conexão travar, o formulário libera uma nova tentativa; a busca também pode ser cancelada. Respostas e ativações não são reenviadas automaticamente. Dados privados são carregados somente ao abrir o painel.
+
 ## Desenvolvimento
 
 Requer Node.js 22 e npm.

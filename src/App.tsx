@@ -11,6 +11,7 @@ import {
   DEFAULT_SETTINGS, brDate, displayStatus, makeId, normalizeName, emptyData, hydrateSettings, normalizePhone, formatPhone, supabase, timeAgo,
 } from './data'
 import type { Announcement, AuditEntry, DemoData, Guest, GuestMessage, Profile, ScheduleItem, Side, Status, Venue, WeddingSettings } from './data'
+import { publicPost } from './publicApi'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Não foi possível concluir. Confira sua conexão e tente novamente.'
 const auditLabel = (key: string) => ({ full_name: 'Nome completo', alt_name: 'Nome alternativo', status: 'Resposta', side: 'Lista', deleted_at: 'Exclusão', deleted_by: 'Quem excluiu', last_reminder_at: 'Última cobrança', reminder_count: 'Número de cobranças', confirmed_at: 'Data da resposta', message_read: 'Recado lido', message_favorite: 'Favorito', draft: 'Rascunho', published: 'Publicação' } as Record<string, string>)[key] ?? key
@@ -67,7 +68,7 @@ function OliveBranch({ className = '' }: { className?: string }) {
 
 function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
   settings: WeddingSettings; onEnterAdmin: () => void
-  lookupGuest: (name: string, last4: string, keyword: string) => Promise<{ guest: Guest | { id: string; full_name: string; status: Status }; token: string } | { ambiguous: true } | null>
+  lookupGuest: (name: string, last4: string, keyword: string, signal: AbortSignal) => Promise<{ guest: Guest | { id: string; full_name: string; status: Status }; token: string } | { ambiguous: true } | null>
   answerGuest: (token: string, guestId: string, status: Status, message: string | null, keyword: string) => Promise<void>
 }) {
   const [name, setName] = useState('')
@@ -82,6 +83,8 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
   const [success, setSuccess] = useState(false)
   const [addressNotice, setAddressNotice] = useState('')
   const [now, setNow] = useState(Date.now())
+  const lookupAbort = useRef<AbortController | null>(null)
+  useEffect(() => () => { lookupAbort.current?.abort() }, [])
   useEffect(() => { const interval = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(interval) }, [])
   const deadlinePassed = !settings.rsvp_deadline || new Date(`${settings.rsvp_deadline}T23:59:59-03:00`).getTime() < now
 
@@ -89,14 +92,21 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
     event.preventDefault()
     if (busy) return
     if (!keyword.trim()) { setNotice('Digite a palavra-chave informada no convite.'); return }
+    const controller = new AbortController()
+    lookupAbort.current = controller
     setNotice(''); setFound(null); setSuccess(false); setBusy(true)
     try {
-      const result = await lookupGuest(name, last4, keyword)
+      const result = await lookupGuest(name, last4, keyword, controller.signal)
+      if (controller.signal.aborted) return
       if (!result) { setNotice('Não encontramos esse nome. Digite o nome completo ou o nome alternativo exatamente como foi cadastrado pelos noivos. Se continuar sem encontrar, fale com eles para conferir o cadastro.'); return }
       if ('ambiguous' in result) { setAmbiguous(true); setNotice('Encontramos mais de uma pessoa com esse nome. Para proteger sua privacidade, informe os 4 últimos números do telefone cadastrado.'); return }
       setAmbiguous(false); setFound(result); setMessage(''); setMessageEdited(false)
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Não foi possível buscar agora. Tente novamente em instantes.') }
-    finally { setBusy(false) }
+    } catch (error) { if (!controller.signal.aborted) setNotice(error instanceof Error ? error.message : 'Não foi possível buscar agora. Tente novamente em instantes.') }
+    finally { if (lookupAbort.current === controller) { lookupAbort.current = null; setBusy(false) } }
+  }
+  function cancelLookup() {
+    lookupAbort.current?.abort(); lookupAbort.current = null
+    setBusy(false); setNotice('Busca cancelada. Você pode tentar novamente.')
   }
   async function answer(status: Status) {
     if (!found || busy || deadlinePassed) return
@@ -162,10 +172,11 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
             <label className="field-label" htmlFor="guest-name">Seu nome completo</label>
             <div className="input-wrap"><Users size={18} /><input autoComplete="off" id="guest-name" aria-describedby="guest-name-help" disabled={busy} value={name} onChange={e => { setName(e.target.value); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Como foi cadastrado pelos noivos" required minLength={3} maxLength={160} /><button type="submit" aria-label="Buscar convite" disabled={busy}>{busy ? <span className="leaf-loader"><Leaf size={19} /></span> : <ArrowRight size={19} />}</button></div>
             <p className="lookup-help" id="guest-name-help">Use o nome completo ou o nome alternativo cadastrado pelos noivos. A busca não mostra a lista de convidados.</p>
-            {ambiguous && <div className="disambiguation"><label className="field-label" htmlFor="last4">4 últimos números do telefone cadastrado</label><input id="last4" inputMode="numeric" required minLength={4} maxLength={4} value={last4} onChange={e => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" /></div>}
+            {ambiguous && <div className="disambiguation"><label className="field-label" htmlFor="last4">4 últimos números do telefone cadastrado</label><input id="last4" inputMode="numeric" disabled={busy} required minLength={4} maxLength={4} value={last4} onChange={e => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" /></div>}
             {notice && <p className="form-notice" role="alert">{notice}</p>}
             <p className="privacy-note"><ShieldCheck size={16} /> Seus dados são usados somente para organizar o casamento.</p>
             <button className="button button--primary lookup-submit" disabled={busy}>{busy ? 'Buscando…' : 'Encontrar meu convite'} <ArrowRight size={16} /></button>
+            {busy && <div className="lookup-progress" role="status"><p>A busca pode levar alguns segundos.</p><button type="button" className="text-button" onClick={cancelLookup}>Cancelar busca</button></div>}
           </form>}
         </div>
         <div className="rsvp-footnote"><span className="ornament">✳</span><p>Se tiver qualquer dúvida, fale com os noivos.<br />Será uma alegria ajudar.</p></div>
@@ -468,19 +479,30 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!supabase) { setPublicError('A conexão do site ainda não está configurada. Tente novamente mais tarde.'); setAuthChecked(true); setPublicLoaded(true); return }
+    if (isAdminRoute) return
     let mounted = true
-    Promise.resolve(supabase.rpc('get_public_wedding')).then(({ data: settings, error }) => {
+    const publicController = new AbortController()
+    setPublicLoaded(false); setPublicError('')
+    publicPost<Partial<WeddingSettings>>('rest/v1/rpc/get_public_wedding', {}, { signal: publicController.signal }).then(settings => {
       if (!mounted) return
-      if (error) setPublicError('Não foi possível carregar o convite. Confira sua conexão e tente novamente.')
-      else setPublished(hydrateSettings(settings))
+      setPublished(hydrateSettings(settings))
       setPublicLoaded(true)
-    }).catch(() => { if (mounted) { setPublicError('Não foi possível carregar o convite. Confira sua conexão e tente novamente.'); setPublicLoaded(true) } })
+    }).catch(error => { if (mounted) { setPublicError(errorText(error)); setPublicLoaded(true) } })
+    return () => { mounted = false; publicController.abort() }
+  }, [isAdminRoute])
+
+  useEffect(() => {
+    if (!isAdminRoute) { setAuthChecked(false); setProfile(null); setData(emptyData()); return }
+    if (!supabase) { setLoginError('A conexão do painel está indisponível. Tente novamente mais tarde.'); setAuthChecked(true); return }
+    let mounted = true
+    setAuthChecked(false)
     supabase.auth.getSession().then(async ({ data: sessionData, error }) => {
       try {
+        if (!mounted) return
         if (error) throw error
         if (sessionData.session?.user) {
           const { data: row, error: profileError } = await supabase!.from('profiles').select('id,name,side').eq('id', sessionData.session.user.id).single()
+          if (!mounted) return
           if (profileError || !row) throw new Error('Sua conta não tem acesso ao painel dos noivos.')
           await loadRemote()
           if (mounted) setProfile(row as Profile)
@@ -489,8 +511,8 @@ function App() {
       finally { if (mounted) setAuthChecked(true) }
     }).catch(error => { if (mounted) { setLoginError(errorText(error)); setAuthChecked(true) } })
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { if (!session && mounted) { remoteRequest.current++; setProfile(null); setData(emptyData()) } })
-    return () => { mounted = false; listener.subscription.unsubscribe() }
-  }, [loadRemote])
+    return () => { mounted = false; remoteRequest.current++; listener.subscription.unsubscribe() }
+  }, [isAdminRoute, loadRemote])
 
   useEffect(() => {
     if (!profile || !isAdminRoute) return
@@ -523,18 +545,19 @@ function App() {
   const saveSettings = async (draft: WeddingSettings, publish: boolean) => { await mutate(client().from('wedding_settings').update(publish ? { draft, published: draft } : { draft }).eq('singleton', true).select().single()) }
   const setMessageFlags = async (message: GuestMessage, read: boolean, favorite: boolean) => { await mutate(client().rpc('set_message_flags', { p_guest_id: message.guest_id, p_read: read, p_favorite: favorite })) }
 
-  async function invokePublic(body: Record<string, unknown>) {
-    const { data: result, error } = await client().functions.invoke('public-rsvp', { body })
-    if (error) {
-      let message = 'Não foi possível concluir agora. Confira a conexão e tente novamente.'
-      if ('context' in error && error.context instanceof Response) { try { const response = await error.context.json(); message = response.error ?? message } catch { /* Use friendly fallback when gateway returns no JSON. */ } }
-      throw new Error(message)
-    }
-    if (result?.error) throw new Error(result.error)
-    return result
+  async function invokePublic(body: Record<string, unknown>, signal?: AbortSignal) {
+    return publicPost<{ ok?: boolean; ambiguous?: boolean; guest?: { id: string; full_name: string; status: Status }; token?: string }>('functions/v1/public-rsvp', body, {
+      signal,
+      timeoutMs: body.action === 'activate' ? 30000 : 15000,
+      timeoutMessage: body.action === 'answer'
+        ? 'O servidor demorou para responder. Busque seu nome novamente para conferir se a resposta foi registrada.'
+        : body.action === 'activate'
+          ? 'O servidor demorou para responder. Tente entrar com o e-mail e a senha escolhidos para conferir se a conta foi ativada.'
+          : 'A busca demorou mais que o esperado. Confira sua conexão e tente novamente.',
+    })
   }
-  const lookupGuest = async (name: string, last4: string, keyword: string) => {
-    const result = await invokePublic({ action: 'lookup', name: name.trim(), last4, keyword: keyword.trim() })
+  const lookupGuest = async (name: string, last4: string, keyword: string, signal: AbortSignal) => {
+    const result = await invokePublic({ action: 'lookup', name: name.trim(), last4, keyword: keyword.trim() }, signal)
     if (result?.ambiguous) return { ambiguous: true as const }
     return result?.guest && result?.token ? { guest: result.guest, token: result.token } : null
   }
