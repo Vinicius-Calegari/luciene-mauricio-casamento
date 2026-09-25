@@ -49,10 +49,13 @@ export async function publicPost<T>(
     if (stoppedError) throw stoppedError
     let response: Response
     try {
+      const isRsvp = path.replace(/^\/+/, '').split('?')[0] === 'functions/v1/public-rsvp'
       response = await fetch(`${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`, {
         method: 'POST',
-        headers: { apikey: apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        // A safelisted POST skips the extra cross-origin OPTIONS round trip.
+        // The server still validates the app key, invitation phrase and guest token.
+        headers: isRsvp ? { 'Content-Type': 'text/plain;charset=UTF-8' } : { apikey: apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(isRsvp ? { ...body, appKey: apiKey } : body),
         signal: controller.signal,
         credentials: 'omit',
         cache: 'no-store',

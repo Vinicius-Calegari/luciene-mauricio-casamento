@@ -2,8 +2,6 @@
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUBLIC_KEY = "sb_publishable_hvkc3yS6vxmZFbNvJUU_8w_kMovzv-_";
-// Invitation phrase gate, checked only on the server. It does not replace guest tokens.
-const RSVP_KEYWORD_HASH = "25217914ae5a23bf29fcfa3e21f04c4f023813294c7acb5f99e0b512d7a97fdd";
 const allowedOrigins = new Set(["https://vinicius-calegari.github.io", "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173"]);
 const encoder = new TextEncoder();
 async function hash(value: string) {
@@ -31,20 +29,21 @@ async function authAdmin(path: string, body?: Record<string, unknown>, method = 
   return { ok: response.ok, data };
 }
 Deno.serve(async (req: Request) => {
+  const started = performance.now();
   const origin = req.headers.get("origin") ?? "";
   const cors = {
     "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://vinicius-calegari.github.io",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Max-Age": "86400",
+    "Access-Control-Expose-Headers": "Server-Timing",
     "Vary": "Origin",
     "Cache-Control": "no-store",
     "Content-Type": "application/json"
   };
-  const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: cors });
+  const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...cors, "Server-Timing": `app;dur=${(performance.now()-started).toFixed(1)}` } });
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "Método não permitido." }, 405);
-  // Explicit app-key authorization permits use of current Supabase publishable keys.
-  if (req.headers.get("apikey") !== PUBLIC_KEY) return json({ error: "Chave de aplicação inválida." }, 401);
   if (origin && !allowedOrigins.has(origin)) return json({ error: "Origem não permitida." }, 403);
   try {
     if (Number(req.headers.get("content-length") || 0) > 8192) return json({ error: "Solicitação muito grande." }, 413);
@@ -52,37 +51,38 @@ Deno.serve(async (req: Request) => {
     if (raw.length > 8192) return json({ error: "Solicitação muito grande." }, 413);
     let body: Record<string, unknown>;
     try { body = JSON.parse(raw); } catch { return json({ error: "Solicitação inválida." }, 400); }
-    if (!body || Array.isArray(body)) return json({ error: "Solicitação inválida." }, 400);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Solicitação inválida." }, 400);
+    // Body transport avoids a browser preflight. Older clients can keep their apikey header.
+    if ((req.headers.get("apikey") || body.appKey) !== PUBLIC_KEY) return json({ error: "Chave de aplicação inválida." }, 401);
     const action = body.action;
     if (!["lookup", "answer", "activate"].includes(String(action))) return json({ error: "Ação inválida." }, 400);
     const forwarded = req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
     const ip = req.headers.get("cf-connecting-ip") || forwarded || req.headers.get("x-real-ip") || "unknown";
     const fingerprint = await hash(ip + "|" + SERVICE_KEY);
-    const allowed = await rpc("rsvp_rate_limit", { p_fingerprint: fingerprint, p_action: action });
-    if (!allowed) return json({ error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." }, 429);
-    if (action === "lookup" || action === "answer") {
-      if (typeof body.keyword !== "string" || !body.keyword.trim()) {
-        return json({ error: "Digite a palavra-chave informada no convite. Se o campo não aparecer, atualize a página." }, 400);
-      }
-      if (body.keyword.length > 100 || await hash(body.keyword.trim().toLowerCase()) !== RSVP_KEYWORD_HASH) {
-        return json({ error: "A palavra-chave não confere. Confira a palavra informada no convite e tente novamente." }, 403);
-      }
-    }
+    const keywordHash = typeof body.keyword === "string" && body.keyword.trim()
+      ? body.keyword.length <= 100 ? await hash(body.keyword.trim().toLowerCase()) : "invalid"
+      : "";
     if (action === "lookup") {
       if (typeof body.name !== "string" || body.name.trim().length < 3 || body.name.length > 180) return json({ error: "Informe seu nome completo." }, 400);
       const last4 = typeof body.last4 === "string" ? body.last4 : "";
       if (last4 && !/^\d{4}$/.test(last4)) return json({ error: "Informe somente os quatro últimos números do telefone." }, 400);
       const sessionToken = token();
-      const result = await rpc("rsvp_lookup", { p_name: body.name, p_last4: last4, p_token_hash: await hash(sessionToken) });
-      return json(result?.guest ? { ...result, token: sessionToken } : result);
+      const result = await rpc("rsvp_request", { p_action: action, p_fingerprint: fingerprint, p_keyword_hash: keywordHash,
+        p_payload: { name: body.name, last4, token_hash: await hash(sessionToken) } });
+      const { http_status = 200, ...payload } = result;
+      return json(payload.guest ? { ...payload, token: sessionToken } : payload, http_status);
     }
     if (action === "answer") {
       if (typeof body.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body.token)) return json({ error: "Sua sessão expirou. Busque seu nome novamente." }, 400);
       if (!["confirmed", "declined"].includes(String(body.status))) return json({ error: "Escolha uma resposta válida." }, 400);
       if (body.message !== null && (typeof body.message !== "string" || body.message.length > 500)) return json({ error: "O recado deve ter no máximo 500 caracteres." }, 400);
-      const result = await rpc("rsvp_answer", { p_token_hash: await hash(body.token), p_status: body.status, p_message: body.message ?? null });
-      return json(result, result?.error ? 400 : 200);
+      const result = await rpc("rsvp_request", { p_action: action, p_fingerprint: fingerprint, p_keyword_hash: keywordHash,
+        p_payload: { token_hash: await hash(body.token), status: body.status, message: body.message ?? null } });
+      const { http_status = 200, ...payload } = result;
+      return json(payload, http_status);
     }
+    const allowed = await rpc("rsvp_rate_limit", { p_fingerprint: fingerprint, p_action: action });
+    if (!allowed) return json({ error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." }, 429);
     if (typeof body.code !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body.code) ||
         typeof body.email !== "string" || body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ||
         typeof body.password !== "string" || body.password.length < 12 || body.password.length > 128) {

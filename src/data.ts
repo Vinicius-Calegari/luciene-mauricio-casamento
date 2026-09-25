@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import { createClient } from '@supabase/supabase-js'
 
 export type Side = 'luciene' | 'mauricio'
 export type Status = 'pending' | 'confirmed' | 'declined'
@@ -59,11 +58,6 @@ export const DEFAULT_SETTINGS: WeddingSettings = {
   venues: [],
   announcements: [],
 }
-
-const env = import.meta.env
-export const supabase = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY
-  ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY)
-  : null
 
 export type DemoData = { guests: Guest[]; settings: WeddingSettings; audit: AuditEntry[]; messages: GuestMessage[]; versions: PublishedVersion[] }
 export const emptyData = (): DemoData => ({ guests: [], settings: DEFAULT_SETTINGS, audit: [], messages: [], versions: [] })

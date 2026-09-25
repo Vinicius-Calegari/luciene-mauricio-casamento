@@ -135,8 +135,6 @@ label > input, label > textarea, label > select { display: block; margin-top: 8p
 .input-wrap > button:hover { background: #e1e6d3; }
 .input-error { border-color: #bf967c; }
 .lookup-help { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 9px 0 22px; }
-.lookup-progress { text-align: center; margin-top: 14px; color: var(--muted); font-size: 12px; }
-.lookup-progress p { margin: 0 0 8px; }
 .privacy-note { display: flex; gap: 7px; align-items: center; color: #8a907d; font-size: 9px; line-height: 1.6; margin: 15px 0 21px; }
 .privacy-note svg { color: #98a085; width: 13px; height: 13px; }
 .lookup-submit { width: 100%; border-radius: 3px; }
@@ -148,7 +146,22 @@ label > input, label > textarea, label > select { display: block; margin-top: 8p
 .found-state > p, .success-state p { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
 .found-state .eyebrow, .success-state .eyebrow { font-size: 8px; }
 .answer-buttons { display: flex; gap: 10px; margin: 18px 0 25px; }
-.answer-buttons .button { font-size: 10px; flex: 1; padding: 12px 9px; }
+.answer-options { border: 0; padding: 0; margin: 24px 0 0; min-width: 0; }
+.answer-options legend { font-size: 14px; line-height: 1.5; font-weight: 500; }
+.answer-choice { display: flex; align-items: center; gap: 9px; flex: 1; min-height: 62px; padding: 14px 12px; border: 1px solid #cfd7bd; border-radius: 5px; background: #fffefb; font-size: 12px; cursor: pointer; transition: background .15s, border-color .15s; }
+.answer-choice input { flex: 0 0 17px; width: 17px; height: 17px; min-height: 0; margin: 0; padding: 0; accent-color: var(--olive); }
+.answer-choice svg { width: 16px; }
+.answer-choice:hover, .answer-choice.is-selected { border-color: var(--olive); background: #edf2e3; }
+.answer-options:disabled .answer-choice { cursor: wait; opacity: .7; }
+.guest-identity { padding-bottom: 18px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.guest-identity strong { display: block; color: var(--ink); font-weight: 600; font-size: 15px; }
+.response-submit { width: 100%; min-height: 50px; }
+.response-help { text-align: center; color: var(--muted); font-size: 11px; margin: 9px 0 0; }
+.message-preservation { font-size: 11px; color: var(--muted); margin-top: 9px; }
+.back-to-lookup { margin-top: 18px; min-height: 44px; }
+.lookup-privacy { margin-bottom: 0; justify-content: center; font-size: 10px; }
+.response-receipt { display: grid; gap: 6px; margin: 24px 0 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 17px 12px; font-size: 12px; overflow-wrap: anywhere; }
+.response-receipt span { color: var(--muted); }
 .char-count { font-size: 9px; text-align: right; margin-top: 5px; color: var(--muted); }
 .success-state { text-align: center; padding: 10px 0; }
 .success-seal { display: grid; place-items: center; width: 60px; height: 60px; border: 1px solid #cbd5b7; border-radius: 50%; margin: 0 auto 22px; background: #edf3e4; color: #70854d; }
@@ -700,7 +713,7 @@ label > input, label > textarea, label > select { display: block; margin-top: 8p
   .input-wrap input { font-size: 11px; }
   .privacy-note { font-size: 8px; align-items: flex-start; }
   .answer-buttons { flex-direction: column; }
-  .answer-buttons .button { width: 100%; font-size: 11px; }
+  .answer-choice { width: 100%; font-size: 14px; min-height: 58px; }
   .field-label { font-size: 11px; }
   .field-label span { display: block; margin-left: 0; margin-top: 3px; }
   .section-kicker .eyebrow { font-size: 6px; }
@@ -1000,7 +1013,8 @@ select, .button, .admin-app .button, .text-button, .nav-rsvp,
 @media (max-width: 600px) {
   .lookup-form .input-wrap input, .lookup-form .disambiguation input, .found-state textarea { font-size: 16px; }
   .lookup-form .input-wrap { min-height: 48px; }
-  .lookup-progress .text-button { min-height: 44px; }
+  .lookup-submit, .response-submit { min-height: 52px; font-size: 14px; }
+  .response-form .field-label, .lookup-form .field-label { font-size: 13px; }
 }
 
 /* Respect user preferences without hiding content. */

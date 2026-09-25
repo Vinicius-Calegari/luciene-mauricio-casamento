@@ -21,9 +21,9 @@ No convite público, o convidado informa a palavra-chave recebida no convite e b
 
 Os cadastros são salvos no Supabase e consultados por todos os aparelhos. Convidados na lixeira ficam fora da busca pública; use **Lixeira → Restaurar** para recuperá-los. Se um nome não for encontrado, confira primeiro o cadastro ativo e a grafia do nome completo ou alternativo.
 
-A palavra-chave é validada pela Edge Function na busca e no envio da resposta, com limite de tentativas. O valor esperado não é enviado no JavaScript do site nem exibido no formulário. Para trocar a palavra, altere seu SHA-256 em `RSVP_KEYWORD_HASH` na função `public-rsvp` e publique a função novamente. Espaços no início/fim e diferenças entre maiúsculas e minúsculas são ignorados.
+A palavra-chave é validada no servidor na busca e no envio da resposta, com limite de tentativas. O valor esperado não é enviado no JavaScript do site nem exibido no formulário. Para trocar a palavra, aplique uma migração atualizando o SHA-256 esperado na função SQL `rsvp_request`. Espaços no início/fim e diferenças entre maiúsculas e minúsculas são ignorados.
 
-O convite e a confirmação usam requisições públicas independentes da sessão do painel, com limite de 15 segundos incluindo a leitura da resposta. Se a conexão travar, o formulário libera uma nova tentativa; a busca também pode ser cancelada. Respostas e ativações não são reenviadas automaticamente. Dados privados são carregados somente ao abrir o painel.
+O convite e a confirmação usam requisições públicas independentes da sessão do painel. A busca usa um POST sem preflight e uma chamada ao banco para validar o limite de tentativas, a palavra-chave e localizar o convidado. O painel e o Supabase Auth são carregados apenas ao abrir a área privada. O limite de 15 segundos é uma proteção para falhas de conexão; não há espera artificial. Respostas e ativações não são reenviadas automaticamente.
 
 ## Desenvolvimento
 
