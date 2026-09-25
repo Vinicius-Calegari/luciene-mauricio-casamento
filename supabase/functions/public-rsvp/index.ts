@@ -2,6 +2,8 @@
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUBLIC_KEY = "sb_publishable_hvkc3yS6vxmZFbNvJUU_8w_kMovzv-_";
+// Invitation phrase gate, checked only on the server. It does not replace guest tokens.
+const RSVP_KEYWORD_HASH = "25217914ae5a23bf29fcfa3e21f04c4f023813294c7acb5f99e0b512d7a97fdd";
 const allowedOrigins = new Set(["https://vinicius-calegari.github.io", "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173"]);
 const encoder = new TextEncoder();
 async function hash(value: string) {
@@ -58,6 +60,14 @@ Deno.serve(async (req: Request) => {
     const fingerprint = await hash(ip + "|" + SERVICE_KEY);
     const allowed = await rpc("rsvp_rate_limit", { p_fingerprint: fingerprint, p_action: action });
     if (!allowed) return json({ error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." }, 429);
+    if (action === "lookup" || action === "answer") {
+      if (typeof body.keyword !== "string" || !body.keyword.trim()) {
+        return json({ error: "Digite a palavra-chave informada no convite. Se o campo não aparecer, atualize a página." }, 400);
+      }
+      if (body.keyword.length > 100 || await hash(body.keyword.trim().toLowerCase()) !== RSVP_KEYWORD_HASH) {
+        return json({ error: "A palavra-chave não confere. Confira a palavra informada no convite e tente novamente." }, 403);
+      }
+    }
     if (action === "lookup") {
       if (typeof body.name !== "string" || body.name.trim().length < 3 || body.name.length > 180) return json({ error: "Informe seu nome completo." }, 400);
       const last4 = typeof body.last4 === "string" ? body.last4 : "";

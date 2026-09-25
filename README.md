@@ -17,7 +17,11 @@ Os códigos iniciais foram entregues em um arquivo local privado. Eles não faze
 
 Cada pessoa gerencia sua própria lista de convidados. Os noivos compartilham informações do evento, recados e histórico de atividades. O painel inclui filtros, exportação CSV/PDF, favoritos, lixeira com restauração por até 30 dias e mensagens prontas para abrir no WhatsApp. O envio pelo WhatsApp é manual.
 
-No convite público, o convidado busca seu nome, confirma ou recusa a presença e pode deixar um recado privado. Quando há nomes iguais, são solicitados os quatro últimos dígitos do telefone cadastrado. As respostas podem ser alteradas até o prazo configurado.
+No convite público, o convidado informa a palavra-chave recebida no convite e busca seu nome completo ou nome alternativo cadastrado. A busca ignora acentos, maiúsculas e espaços extras; a grafia precisa corresponder ao cadastro. Depois, confirma ou recusa a presença e pode deixar um recado privado. Quando há nomes iguais, são solicitados os quatro últimos dígitos do telefone cadastrado. As respostas podem ser alteradas até o prazo configurado.
+
+Os cadastros são salvos no Supabase e consultados por todos os aparelhos. Convidados na lixeira ficam fora da busca pública; use **Lixeira → Restaurar** para recuperá-los. Se um nome não for encontrado, confira primeiro o cadastro ativo e a grafia do nome completo ou alternativo.
+
+A palavra-chave é validada pela Edge Function na busca e no envio da resposta, com limite de tentativas. O valor esperado não é enviado no JavaScript do site nem exibido no formulário. Para trocar a palavra, altere seu SHA-256 em `RSVP_KEYWORD_HASH` na função `public-rsvp` e publique a função novamente. Espaços no início/fim e diferenças entre maiúsculas e minúsculas são ignorados.
 
 ## Desenvolvimento
 

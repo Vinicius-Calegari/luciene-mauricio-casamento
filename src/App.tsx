@@ -67,10 +67,11 @@ function OliveBranch({ className = '' }: { className?: string }) {
 
 function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
   settings: WeddingSettings; onEnterAdmin: () => void
-  lookupGuest: (name: string, last4: string) => Promise<{ guest: Guest | { id: string; full_name: string; status: Status }; token: string } | { ambiguous: true } | null>
-  answerGuest: (token: string, guestId: string, status: Status, message: string | null) => Promise<void>
+  lookupGuest: (name: string, last4: string, keyword: string) => Promise<{ guest: Guest | { id: string; full_name: string; status: Status }; token: string } | { ambiguous: true } | null>
+  answerGuest: (token: string, guestId: string, status: Status, message: string | null, keyword: string) => Promise<void>
 }) {
   const [name, setName] = useState('')
+  const [keyword, setKeyword] = useState('')
   const [last4, setLast4] = useState('')
   const [found, setFound] = useState<{ guest: Guest | { id: string; full_name: string; status: Status }; token: string } | null>(null)
   const [ambiguous, setAmbiguous] = useState(false)
@@ -87,10 +88,11 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
   async function lookup(event: FormEvent) {
     event.preventDefault()
     if (busy) return
+    if (!keyword.trim()) { setNotice('Digite a palavra-chave informada no convite.'); return }
     setNotice(''); setFound(null); setSuccess(false); setBusy(true)
     try {
-      const result = await lookupGuest(name, last4)
-      if (!result) { setNotice('Não encontramos esse nome. Confira o nome completo ou fale com os noivos.'); return }
+      const result = await lookupGuest(name, last4, keyword)
+      if (!result) { setNotice('Não encontramos esse nome. Digite o nome completo ou o nome alternativo exatamente como foi cadastrado pelos noivos. Se continuar sem encontrar, fale com eles para conferir o cadastro.'); return }
       if ('ambiguous' in result) { setAmbiguous(true); setNotice('Encontramos mais de uma pessoa com esse nome. Para proteger sua privacidade, informe os 4 últimos números do telefone cadastrado.'); return }
       setAmbiguous(false); setFound(result); setMessage(''); setMessageEdited(false)
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Não foi possível buscar agora. Tente novamente em instantes.') }
@@ -100,7 +102,7 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
     if (!found || busy || deadlinePassed) return
     setBusy(true); setNotice('')
     try {
-      await answerGuest(found.token, found.guest.id, status, messageEdited ? message.trim() : null)
+      await answerGuest(found.token, found.guest.id, status, messageEdited ? message.trim() : null, keyword)
       setFound({ ...found, guest: { ...found.guest, status } }); setSuccess(true)
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Não foi possível registrar sua resposta.') }
     finally { setBusy(false) }
@@ -154,8 +156,12 @@ function PublicPage({ settings, onEnterAdmin, lookupGuest, answerGuest }: {
             </> : <div className="deadline-note"><Clock3 size={17} /><span>O prazo para confirmar presença já encerrou. Obrigado pelo carinho!</span></div>}
             <p className="form-notice" role="alert">{notice}</p><button className="text-button" disabled={busy} onClick={() => { setFound(null); setSuccess(false); setNotice(''); setAmbiguous(false); setLast4('') }}><ArrowLeft size={14} /> Buscar outro nome</button>
           </div> : <form onSubmit={lookup} className="lookup-form">
+            <label className="field-label" htmlFor="invite-keyword">Palavra-chave do convite</label>
+            <div className="input-wrap"><ShieldCheck size={18} /><input id="invite-keyword" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-describedby="invite-keyword-help" disabled={busy} value={keyword} onChange={e => { setKeyword(e.target.value); setFound(null); setSuccess(false); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Digite a palavra-chave recebida" required maxLength={100} /></div>
+            <p className="lookup-help" id="invite-keyword-help">Ela está no seu convite e permite buscar sua confirmação.</p>
             <label className="field-label" htmlFor="guest-name">Seu nome completo</label>
-            <div className={`input-wrap ${notice && !ambiguous ? 'input-error' : ''}`}><Users size={18} /><input autoComplete="off" id="guest-name" disabled={busy} value={name} onChange={e => { setName(e.target.value); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Como aparece no convite" required minLength={3} maxLength={160} /><button type="submit" aria-label="Buscar convite" disabled={busy}>{busy ? <span className="leaf-loader"><Leaf size={19} /></span> : <ArrowRight size={19} />}</button></div>
+            <div className="input-wrap"><Users size={18} /><input autoComplete="off" id="guest-name" aria-describedby="guest-name-help" disabled={busy} value={name} onChange={e => { setName(e.target.value); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Como foi cadastrado pelos noivos" required minLength={3} maxLength={160} /><button type="submit" aria-label="Buscar convite" disabled={busy}>{busy ? <span className="leaf-loader"><Leaf size={19} /></span> : <ArrowRight size={19} />}</button></div>
+            <p className="lookup-help" id="guest-name-help">Use o nome completo ou o nome alternativo cadastrado pelos noivos. A busca não mostra a lista de convidados.</p>
             {ambiguous && <div className="disambiguation"><label className="field-label" htmlFor="last4">4 últimos números do telefone cadastrado</label><input id="last4" inputMode="numeric" required minLength={4} maxLength={4} value={last4} onChange={e => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" /></div>}
             {notice && <p className="form-notice" role="alert">{notice}</p>}
             <p className="privacy-note"><ShieldCheck size={16} /> Seus dados são usados somente para organizar o casamento.</p>
@@ -375,6 +381,7 @@ function AdminShell({ profile, signOut, data, published, persistGuest, importGue
             <div className="guest-table-wrap"><table className="guest-table"><thead><tr><th>CONVIDADO</th><th>WHATSAPP</th><th>STATUS</th><th>{section === 'trash' ? 'EXCLUÍDO' : 'ÚLTIMA COBRANÇA'}</th><th aria-label="Ações" /></tr></thead><tbody>{pageGuests.map(g => <tr key={g.id}><td><div className="guest-name-cell"><span className="guest-avatar">{g.full_name[0]}</span><span><strong>{g.full_name}</strong><small>{g.alt_name || `Convidado da ${sideName}`}</small></span></div></td><td>{g.phone ? <span className="phone-cell">{formatPhone(g.phone)}</span> : <span className="muted">Não cadastrado</span>}</td><td><span className={`status-badge status-${g.status}`}>{g.status === 'confirmed' && <Check size={12} />}{displayStatus[g.status]}</span></td><td>{section === 'trash' ? <span className="muted">{g.deleted_at ? timeAgo(g.deleted_at) : ''} · {sideName}</span> : g.last_reminder_at ? <span className="muted">Cobrado {timeAgo(g.last_reminder_at)} · {g.reminder_count}×</span> : <span className="muted">Nunca cobrado</span>}</td><td><div className="row-actions">{section === 'trash' ? <><button className="mini-action" onClick={() => void restore(g)}>Restaurar</button><button className="icon-button" aria-label="Excluir definitivamente" onClick={() => void removeForever(g)}><Trash2 size={15} /></button></> : <>{section === 'pending' && <><button className="whatsapp-action" disabled={!g.phone || busy} title={g.phone ? 'Cobrar no WhatsApp' : 'Cadastre o WhatsApp para cobrar'} onClick={() => openReminder(g)}><MessageCircle size={14} /> Cobrar</button><button className="icon-button" title="Copiar mensagem" disabled={busy} onClick={() => void copyReminder(g)}><Copy size={15} /></button></>}<button className="icon-button" aria-label="Editar convidado" onClick={() => setModal(g)}><MoreHorizontal size={17} /></button><button className="icon-button" aria-label="Mover para lixeira" onClick={() => void softDelete(g)}><Trash2 size={15} /></button></>}</div></td></tr>)}{!visibleGuests.length && <tr><td colSpan={5}><div className="table-empty"><span>✳</span><strong>{section === 'trash' ? 'A lixeira está vazia' : section === 'pending' ? 'Tudo em dia por aqui' : 'Nenhum convidado encontrado'}</strong><small>{section === 'pending' ? 'Quando houver respostas pendentes, elas aparecem aqui.' : 'Adicione um convidado para começar sua lista.'}</small>{section === 'guests' && <button className="text-button" onClick={() => setModal('new')}><Plus size={14} /> Adicionar convidado</button>}</div></td></tr>}</tbody></table></div>
             <div className="table-footer"><span>{visibleGuests.length} convidados · página {Math.min(page, pageCount)} de {pageCount}</span><div className="pagination-controls"><button className="mini-action" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button><button className="mini-action" disabled={page >= pageCount} onClick={() => setPage(page + 1)}>Próxima</button></div><span>Lista da {sideName} · privada</span></div>
           </section>
+          {section === 'guests' && !activeGuests.length && ownGuests.some(g => g.deleted_at) && <div className="whatsapp-tip"><Trash2 size={18} /><span><strong>Há convidados na lixeira.</strong><small>Somente convidados ativos podem ser encontrados na confirmação de presença. Abra a Lixeira e escolha Restaurar para devolver um nome à lista.</small></span><button className="text-button" onClick={() => { setQuery(''); setFilter('all'); setSection('trash') }}>Abrir Lixeira <ArrowRight size={14} /></button></div>}
           {section === 'pending' && <div className="whatsapp-tip"><MessageCircle size={18} /><span><strong>Uma mensagem carinhosa faz toda a diferença.</strong><small>O envio pelo WhatsApp é manual; cada clique abre a conversa com a mensagem preenchida.</small></span><button className="text-button" onClick={() => setSection('settings')}>Editar mensagem <ArrowRight size={14} /></button></div>}
         </>}
         {section === 'messages' && <>
@@ -526,12 +533,12 @@ function App() {
     if (result?.error) throw new Error(result.error)
     return result
   }
-  const lookupGuest = async (name: string, last4: string) => {
-    const result = await invokePublic({ action: 'lookup', name: name.trim(), last4 })
+  const lookupGuest = async (name: string, last4: string, keyword: string) => {
+    const result = await invokePublic({ action: 'lookup', name: name.trim(), last4, keyword: keyword.trim() })
     if (result?.ambiguous) return { ambiguous: true as const }
     return result?.guest && result?.token ? { guest: result.guest, token: result.token } : null
   }
-  const answerGuest = async (token: string, _guestId: string, status: Status, message: string | null) => { const result = await invokePublic({ action: 'answer', token, status, message }); if (!result?.ok) throw new Error('A resposta não foi registrada. Tente novamente.') }
+  const answerGuest = async (token: string, _guestId: string, status: Status, message: string | null, keyword: string) => { const result = await invokePublic({ action: 'answer', token, status, message, keyword: keyword.trim() }); if (!result?.ok) throw new Error('A resposta não foi registrada. Tente novamente.') }
 
   if ((!authChecked && isAdminRoute) || (!isAdminRoute && !publicLoaded)) return <div className="loading-screen"><BrandMark /><span>Preparando o seu espaço…</span></div>
   if (isAdminRoute && !profile) return <LoginScreen onSignIn={signIn} onActivate={async (email, password, code) => { setLoginError(''); try { await invokePublic({ action: 'activate', email: email.trim(), password, code: code.trim() }); await signIn(email, password) } catch (error) { setLoginError(errorText(error)) } }} error={loginError || loadError} />
