@@ -37,6 +37,7 @@ Copie `.env.example` para `.env.local` e preencha `VITE_SUPABASE_URL` e `VITE_SU
 
 ```sh
 npm run dev
+npm test
 npm run build -- --base=/luciene-mauricio-casamento/
 ```
 
@@ -44,8 +45,20 @@ O aplicativo usa React, TypeScript e Vite. O Supabase fornece Postgres, autentic
 
 ## Publicação
 
-O site é publicado pelo GitHub Pages. Cada push em `main` executa `.github/workflows/deploy-pages.yml`, instala as dependências, compila e publica `dist/`. O workflow também pode ser acionado manualmente em **Actions**.
+O site é publicado pelo GitHub Pages. Cada push em `main` executa `.github/workflows/deploy-pages.yml`, instala as dependências, roda os testes, compila e publica `dist/`. O workflow também pode ser acionado manualmente em **Actions**.
 
 As variáveis de repositório `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` fornecem a configuração pública ao build. Alterações no banco ou na Edge Function devem ser aplicadas separadamente ao projeto Supabase antes de publicar código que dependa delas.
 
 Não versionar `.env.local`, `private/`, senhas, códigos de ativação ou chaves administrativas. O arquivo `netlify.toml` contém uma configuração alternativa de hospedagem; a publicação principal usa GitHub Pages.
+
+## Diagnóstico de desempenho
+
+O [relatório de desempenho](docs/performance-investigation.md) separa duração SQL, comunicação interna e requisição completa. `scripts/diagnose-rsvp.sql` mede planos, índices, volume e conexões sem alterar registros. `tests/rsvp-lookup-contract.sql` valida o contrato da busca com dados temporários e termina com `ROLLBACK`.
+
+Para medir a chamada real, crie um arquivo ignorado em `private/` contendo `name`, `keyword` e `samples` (até 5), depois execute:
+
+```sh
+node --env-file=.env.local scripts/measure-rsvp.mjs private/medicao.json private/resultado.json
+```
+
+Essa medição cria sessões temporárias de busca e consome o limite normal de tentativas; não confirma presença. Os resultados contêm apenas tempos, status HTTP e indicação de convite encontrado. `npm test` usa respostas simuladas e não acessa produção.

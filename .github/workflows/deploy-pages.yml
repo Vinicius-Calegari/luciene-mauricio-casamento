@@ -31,6 +31,8 @@ jobs:
           cache: npm
       - name: Instalar dependencias
         run: npm ci
+      - name: Testar transporte e API
+        run: npm test
       - name: Conferir configuracao publica
         run: |
           test -n "$VITE_SUPABASE_URL" || { echo 'VITE_SUPABASE_URL ausente'; exit 1; }

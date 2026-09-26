@@ -275,23 +275,34 @@ function AdminApp() {
   const [toastState, setToastState] = useState<{ message: string; undo?: () => void } | null>(null)
   const toast = useCallback((message: string, undo?: () => void) => { setToastState({ message, undo }); window.setTimeout(() => setToastState(current => current?.message === message ? null : current), 8000) }, [])
   const remoteRequest = useRef(0)
+  const remoteInFlight = useRef(0)
 
-  const loadRemote = useCallback(async () => {
+  const loadRemote = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
     if (!supabase) throw new Error('A conexão do site ainda não está configurada.')
+    // Focus/interval refreshes share work already in progress. A refresh after a
+    // write must always start a newer request so pre-write data cannot win.
+    if (background && remoteInFlight.current > 0) return
     const request = ++remoteRequest.current
-    const [guests, settingsResult, audit, messages] = await Promise.all([
-      readAllRows<Guest>((from, to) => supabase!.from('guests').select(GUEST_COLUMNS).order('created_at', { ascending: false }).order('id').range(from, to)),
-      supabase.from('wedding_settings').select('draft,published,versions').eq('singleton', true).single(),
-      readAllRows((from, to) => supabase!.from('audit_log').select('id,created_at,actor_type,action,guest_name,details,before_row,after_row').order('created_at', { ascending: false }).order('id').range(from, to)),
-      readAllRows<GuestMessage>((from, to) => supabase!.rpc('get_messages').order('confirmed_at', { ascending: false, nullsFirst: false }).order('guest_id').range(from, to)),
-    ])
-    if (settingsResult.error) throw settingsResult.error
-    if (request !== remoteRequest.current) return
-    const nextSettings = hydrateSettings(settingsResult.data?.draft)
-    const nextAudit: AuditEntry[] = audit.map(item => ({ id: item.id, created_at: item.created_at, actor: item.actor_type === 'guest' ? 'Convidado via página pública' : item.actor_type === 'luciene' ? 'Luciene' : item.actor_type === 'mauricio' ? 'Mauricio' : item.actor_type, action: item.action, guest: item.guest_name ?? '', details: typeof item.details === 'string' ? item.details : '', before: item.before_row, after: item.after_row }))
-    setData({ guests, settings: nextSettings, audit: nextAudit, messages, versions: (settingsResult.data?.versions ?? []).map((version: { published: WeddingSettings; created_at: string }) => ({ settings: hydrateSettings(version.published), created_at: version.created_at })) })
-    setPublished(hydrateSettings(settingsResult.data?.published))
-    setLoadError('')
+    remoteInFlight.current++
+    try {
+      const [guests, settingsResult, audit, messages] = await Promise.all([
+        readAllRows<Guest>((from, to) => supabase!.from('guests').select(GUEST_COLUMNS).order('created_at', { ascending: false }).order('id').range(from, to)),
+        supabase.from('wedding_settings').select('draft,published,versions').eq('singleton', true).single(),
+        readAllRows((from, to) => supabase!.from('audit_log').select('id,created_at,actor_type,action,guest_name,details,before_row,after_row').order('created_at', { ascending: false }).order('id').range(from, to)),
+        readAllRows<GuestMessage>((from, to) => supabase!.rpc('get_messages').order('confirmed_at', { ascending: false, nullsFirst: false }).order('guest_id').range(from, to)),
+      ])
+      if (settingsResult.error) throw settingsResult.error
+      if (request !== remoteRequest.current) return
+      const nextSettings = hydrateSettings(settingsResult.data?.draft)
+      const nextAudit: AuditEntry[] = audit.map(item => ({ id: item.id, created_at: item.created_at, actor: item.actor_type === 'guest' ? 'Convidado via página pública' : item.actor_type === 'luciene' ? 'Luciene' : item.actor_type === 'mauricio' ? 'Mauricio' : item.actor_type, action: item.action, guest: item.guest_name ?? '', details: typeof item.details === 'string' ? item.details : '', before: item.before_row, after: item.after_row }))
+      setData({ guests, settings: nextSettings, audit: nextAudit, messages, versions: (settingsResult.data?.versions ?? []).map((version: { published: WeddingSettings; created_at: string }) => ({ settings: hydrateSettings(version.published), created_at: version.created_at })) })
+      setPublished(hydrateSettings(settingsResult.data?.published))
+      setLoadError('')
+    } catch (error) {
+      if (request === remoteRequest.current) throw error
+    } finally {
+      remoteInFlight.current--
+    }
   }, [])
 
   useEffect(() => {
@@ -318,7 +329,7 @@ function AdminApp() {
 
   useEffect(() => {
     if (!profile) return
-    const refresh = () => { if (document.visibilityState === 'visible') void loadRemote().catch(error => setLoadError(errorText(error))) }
+    const refresh = () => { if (document.visibilityState === 'visible') void loadRemote({ background: true }).catch(error => setLoadError(errorText(error))) }
     const interval = window.setInterval(refresh, 30000)
     window.addEventListener('focus', refresh)
     return () => { clearInterval(interval); window.removeEventListener('focus', refresh) }
@@ -341,10 +352,10 @@ function AdminApp() {
   const editableGuest = (guest: Guest) => ({ id: guest.id, full_name: guest.full_name.trim(), alt_name: guest.alt_name.trim(), phone: normalizePhone(guest.phone), side: profile?.side, status: guest.status, confirmed_at: guest.confirmed_at, notes: guest.notes, deleted_at: guest.deleted_at, deleted_by: guest.deleted_by })
   const persistGuest = async (guest: Guest) => { await mutate(client().from('guests').upsert(editableGuest(guest)).select('id').single()) }
   const importGuests = async (guests: Guest[]) => { await mutate(client().from('guests').insert(guests.map(editableGuest)).select('id')) }
-  const deleteGuest = async (guest: Guest) => { await mutate(client().from('guests').update({ deleted_at: guest.deleted_at, deleted_by: profile?.id }).eq('id', guest.id).select().single()) }
-  const permanentDelete = async (guest: Guest) => { await mutate(client().from('guests').delete().eq('id', guest.id).select().single()) }
-  const markReminder = async (guest: Guest) => { await mutate(client().from('guests').update({ last_reminder_at: new Date().toISOString(), reminder_count: guest.reminder_count + 1 }).eq('id', guest.id).select().single()) }
-  const saveSettings = async (draft: WeddingSettings, publish: boolean) => { await mutate(client().from('wedding_settings').update(publish ? { draft, published: draft } : { draft }).eq('singleton', true).select().single()) }
+  const deleteGuest = async (guest: Guest) => { await mutate(client().from('guests').update({ deleted_at: guest.deleted_at, deleted_by: profile?.id }).eq('id', guest.id).select('id').single()) }
+  const permanentDelete = async (guest: Guest) => { await mutate(client().from('guests').delete().eq('id', guest.id).select('id').single()) }
+  const markReminder = async (guest: Guest) => { await mutate(client().from('guests').update({ last_reminder_at: new Date().toISOString(), reminder_count: guest.reminder_count + 1 }).eq('id', guest.id).select('id').single()) }
+  const saveSettings = async (draft: WeddingSettings, publish: boolean) => { await mutate(client().from('wedding_settings').update(publish ? { draft, published: draft } : { draft }).eq('singleton', true).select('singleton').single()) }
   const setMessageFlags = async (message: GuestMessage, read: boolean, favorite: boolean) => { await mutate(client().rpc('set_message_flags', { p_guest_id: message.guest_id, p_read: read, p_favorite: favorite })) }
 
   async function invokePublic(body: Record<string, unknown>, signal?: AbortSignal) {

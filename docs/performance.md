@@ -1,5 +1,7 @@
 # Desempenho da confirmação
 
+Este documento registra as primeiras otimizações. A investigação posterior, com EXPLAIN ANALYZE, correções, comparação antes/depois e testes, está no [relatório completo](performance-investigation.md).
+
 ## Diagnóstico de 25/09/2026
 
 Estatísticas de chamadas já existentes no Supabase, sem alterar respostas de convidados:
