@@ -42,7 +42,7 @@ jobs:
       - name: Gerar site
         run: npm run build -- --base=/luciene-mauricio-casamento/
       - name: Empacotar site
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
