@@ -23,7 +23,7 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Baixar codigo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
