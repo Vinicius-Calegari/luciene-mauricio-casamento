@@ -37,6 +37,8 @@ export type WeddingSettings = {
   bible_verse_text: string
   bible_verse_ref: string
   rsvp_message_template: string
+  invitation_file_url: string
+  invitation_file_name: string
   show_schedule: boolean
   show_venues: boolean
   show_announcements: boolean
@@ -56,7 +58,9 @@ export const DEFAULT_SETTINGS: WeddingSettings = {
   rsvp_deadline: '2026-11-30',
   bible_verse_text: 'O meu amado é meu, e eu sou dele.',
   bible_verse_ref: 'Cantares 2:16, ARC',
-  rsvp_message_template: 'Oi, {nome}! Tudo bem? Estamos muito felizes em ter você no nosso casamento 💚 Ainda não recebemos a sua confirmação. Você pode confirmar por aqui até {prazo}: {link}. Com carinho, {noivos}',
+  rsvp_message_template: 'Oi, {nome}! Tudo bem? Estamos muito felizes em ter você no nosso casamento 💚 Ainda não recebemos a sua confirmação. Você pode confirmar por aqui até {prazo}: {link}. Confira o convite: {convite} Com carinho, {noivos}',
+  invitation_file_url: '',
+  invitation_file_name: '',
   show_schedule: true,
   show_venues: true,
   show_announcements: true,
