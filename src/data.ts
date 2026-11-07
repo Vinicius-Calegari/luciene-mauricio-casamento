@@ -23,7 +23,7 @@ export type Guest = {
   created_at: string
 }
 export type ScheduleItem = { id?: string; time: string; title: string; description: string; icon: string; visible: boolean }
-export type Venue = { id?: string; name: string; address: string; map_url: string; notes: string; type: string; visible: boolean }
+export type Venue = { id?: string; name: string; address: string; map_url: string; photo_url?: string; notes: string; type: string; visible: boolean }
 export type Announcement = { id?: string; title: string; body: string; pinned: boolean; visible: boolean; expires_at: string; published_at?: string }
 export type WeddingSettings = {
   couple_names: string
