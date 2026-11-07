@@ -1086,3 +1086,16 @@ html:has(.login-screen), body:has(.login-screen) { min-height:100%; height:auto;
   .login-form-wrap { min-height:0; padding-top:35px; padding-bottom:55px; }
   .login-form-inner { margin:0 auto; }
 }
+
+/* Robust login scrolling: keep the form itself scrollable even when the viewport is short. */
+.login-screen { height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+.login-art { min-height:100%; }
+.login-form-wrap { height:100%; min-height:0; max-height:100%; overflow-y:auto; overflow-x:hidden; align-items:flex-start; justify-content:center; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.login-form-inner { flex:0 0 auto; margin:auto; padding-top:8px; padding-bottom:8px; }
+@media (max-width:760px) {
+  .login-screen { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; height:auto; min-height:100vh; min-height:100dvh; overflow:visible; }
+  .login-art { min-height:280px; height:auto; }
+  .login-form-wrap { height:auto; max-height:none; min-height:0; overflow:visible; padding:35px 28px 55px; }
+  .login-form-inner { width:100%; margin:0 auto; padding:0; }
+  html:has(.login-screen), body:has(.login-screen) { height:auto; min-height:100%; overflow-x:hidden; overflow-y:auto; }
+}
