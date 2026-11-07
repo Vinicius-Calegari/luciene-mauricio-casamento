@@ -28,7 +28,7 @@ export type Guest = {
 }
 export type ScheduleItem = { id?: string; time: string; title: string; description: string; icon: string; event_scope: EventScope; visible: boolean }
 export type Venue = { id?: string; name: string; address: string; map_url: string; photo_url?: string; notes: string; type: string; event_scope: EventScope; visible: boolean }
-export type Announcement = { id?: string; title: string; body: string; pinned: boolean; visible: boolean; expires_at: string; published_at?: string }
+export type Announcement = { id?: string; title: string; body: string; event_scope: EventScope; pinned: boolean; visible: boolean; expires_at: string; published_at?: string }
 export type WeddingSettings = {
   couple_names: string
   wedding_date: string
@@ -69,7 +69,7 @@ export type DemoData = { guests: Guest[]; settings: WeddingSettings; audit: Audi
 export const emptyData = (): DemoData => ({ guests: [], settings: DEFAULT_SETTINGS, audit: [], messages: [], versions: [] })
 export function hydrateSettings(value: Partial<WeddingSettings> | null): WeddingSettings {
   const settings = { ...DEFAULT_SETTINGS, ...(value ?? {}) }
-  return { ...settings, schedule: (settings.schedule ?? []).map(item => ({ ...item, event_scope: item.event_scope ?? 'both', id: item.id || makeId() })), venues: (settings.venues ?? []).map(item => ({ ...item, event_scope: item.event_scope ?? (/cerim/i.test(item.type) ? 'ceremony' : /recep|celebra/i.test(item.type) ? 'celebration' : 'both'), id: item.id || makeId() })), announcements: (settings.announcements ?? []).map(item => ({ ...item, id: item.id || makeId() })) }
+  return { ...settings, schedule: (settings.schedule ?? []).map(item => ({ ...item, event_scope: item.event_scope ?? 'both', id: item.id || makeId() })), venues: (settings.venues ?? []).map(item => ({ ...item, event_scope: item.event_scope ?? (/cerim/i.test(item.type) ? 'ceremony' : /recep|celebra/i.test(item.type) ? 'celebration' : 'both'), id: item.id || makeId() })), announcements: (settings.announcements ?? []).map(item => ({ ...item, event_scope: item.event_scope ?? 'both', id: item.id || makeId() })) }
 }
 export function normalizePhone(value: string): string {
   const digits = value.replace(/\D/g, '')
