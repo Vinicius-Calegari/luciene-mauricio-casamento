@@ -1051,3 +1051,16 @@ select, .button, .admin-app .button, .text-button, .nav-rsvp,
 .guest-invitation-tags { display: flex; flex-wrap: wrap; gap: 4px; min-width: 110px; }
 .guest-invitation-tags span { display: inline-flex; align-items: center; border: 1px solid #dfe8d5; background: #f3f7ed; color: #82956c; border-radius: 20px; padding: 4px 7px; font-size: 8px; white-space: nowrap; }
 .guest-invitation-tags .is-empty { background: #f8f5ee; border-color: #ece5d8; color: #aa9d83; }
+
+
+/* Venue photo upload and public gallery */
+.venue-photo-editor { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 13px; border: 1px solid #e2e9d8; border-radius: 5px; background: #fffefa; }
+.venue-photo-editor > div { width: 112px; height: 78px; overflow: hidden; border-radius: 4px; background: #f0f2e9; display: grid; place-items: center; }
+.venue-photo-editor img { width: 100%; height: 100%; object-fit: cover; }
+.venue-photo-placeholder { display: grid; place-items: center; gap: 4px; color: #9aa58b; font-size: 8px; }
+.venue-photo-upload { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; padding: 9px 13px; border: 1px solid #dce5d2; border-radius: 3px; background: #f3f6ed; color: #71845b !important; font-size: 10px !important; cursor: pointer; }
+.venue-photo-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.venue-photo-editor small { flex-basis: 100%; color: #a0a991; font-size: 9px; }
+.venue-photo-public { height: 230px; overflow: hidden; background: #edf0e6; }
+.venue-photo-public img { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 640px) { .venue-photo-public { height: 190px; } }
