@@ -1039,3 +1039,15 @@ select, .button, .admin-app .button, .text-button, .nav-rsvp,
   .guest-table-wrap { overflow: visible; }
   .guest-table th, .guest-table td { padding: 10px 8px; }
 }
+
+
+/* Guest invitation scope */
+.guest-invitation-options { border: 1px solid #e2e9d8; border-radius: 6px; padding: 15px 16px 13px; margin: 0; min-width: 0; }
+.guest-invitation-options legend { color: #7f9168; font-size: 10px; padding: 0 6px; }
+.guest-invitation-options > p { color: #a0ab90; font-size: 9px; line-height: 1.5; margin: 0 0 12px; }
+.guest-invitation-checks { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.guest-modal .guest-invitation-checks label { display: inline-flex; align-items: center; gap: 8px; color: #74875d; font-size: 10px; cursor: pointer; }
+.guest-modal .guest-invitation-checks input { width: 15px; height: 15px; accent-color: #81966a; margin: 0; }
+.guest-invitation-tags { display: flex; flex-wrap: wrap; gap: 4px; min-width: 110px; }
+.guest-invitation-tags span { display: inline-flex; align-items: center; border: 1px solid #dfe8d5; background: #f3f7ed; color: #82956c; border-radius: 20px; padding: 4px 7px; font-size: 8px; white-space: nowrap; }
+.guest-invitation-tags .is-empty { background: #f8f5ee; border-color: #ece5d8; color: #aa9d83; }
