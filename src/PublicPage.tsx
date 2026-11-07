@@ -57,7 +57,7 @@ export default function PublicPage({ settings, onEnterAdmin, lookupGuest, answer
       if (controller.signal.aborted) return
       if (!result) { setNotice('Não encontramos seu convite. Confira o nome completo ou o nome alternativo cadastrado. Se precisar, fale com os noivos para conferir a grafia.'); return }
       if ('ambiguous' in result) { setAmbiguous(true); setNotice('Encontramos mais de uma pessoa com esse nome. Para proteger sua privacidade, informe os 4 últimos números do telefone cadastrado.'); return }
-      setAmbiguous(false); setFound(result); setEventInfo(result.event_info); setMessage(''); setMessageEdited(false)
+      setAmbiguous(false); setFound(result); setEventInfo(result.event_info); setSuccess(Boolean(result.event_info)); setMessage(''); setMessageEdited(false)
       setSelectedResponses({ celebration: result.guest.celebration_status === 'pending' ? null : result.guest.celebration_status, ceremony: result.guest.ceremony_status === 'pending' ? null : result.guest.ceremony_status })
     } catch (error) { if (!controller.signal.aborted) setNotice(error instanceof Error ? error.message : 'Não foi possível buscar agora. Tente novamente em instantes.') }
     finally { if (lookupAbort.current === controller) { lookupAbort.current = null; setBusy(false) } }
@@ -81,6 +81,10 @@ export default function PublicPage({ settings, onEnterAdmin, lookupGuest, answer
   const visibleSchedule = eventInfo?.schedule ?? []
   const visibleVenues = eventInfo?.venues ?? []
   const visibleAnnouncements = eventInfo?.announcements ?? []
+  const confirmedCelebration = Boolean(eventInfo?.confirmed_events.includes('celebration'))
+  const confirmedCeremony = Boolean(eventInfo?.confirmed_events.includes('ceremony'))
+  const singleConfirmedEvent = confirmedCelebration !== confirmedCeremony
+  const confirmedEventLabel = confirmedCeremony ? 'cerimônia' : 'celebração'
 
   return <div className="public-site">
     <header className="public-nav">
@@ -114,13 +118,13 @@ export default function PublicPage({ settings, onEnterAdmin, lookupGuest, answer
         <div className="rsvp-card">
           <div className="rsvp-card-index">{found ? '02' : '01'} <span>·</span> {found ? 'SUA RESPOSTA' : 'ENCONTRE SEU CONVITE'}</div>
           {deadlinePassed && !found && <div className="deadline-note"><Clock3 size={17} /><span>O prazo de confirmação encerrou. Você ainda pode consultar a resposta registrada.</span></div>}
-          {success && found ? <div className="success-state" aria-live="polite">
-            <span className="success-seal"><Check size={26} /></span><span className="eyebrow">RESPOSTA REGISTRADA</span>
-            <h3 ref={resultHeading} tabIndex={-1}>Obrigado, {found.guest.full_name.split(' ')[0]}!</h3>
-            <p>{found.guest.status === 'confirmed' ? 'Sua presença está confirmada nos eventos indicados abaixo. Vamos adorar celebrar com você!' : 'Recebemos seu carinho. Obrigado por nos avisar — você estará em nossos pensamentos.'}</p>
+          {(success || eventInfo) && found ? <div className="success-state" aria-live="polite">
+            <span className="success-seal"><Check size={26} /></span><span className="eyebrow">{eventInfo ? 'ACESSO LIBERADO' : 'RESPOSTA REGISTRADA'}</span>
+            <h3 ref={resultHeading} tabIndex={-1}>{eventInfo ? `Olá novamente, ${found.guest.full_name.split(' ')[0]}!` : `Obrigado, ${found.guest.full_name.split(' ')[0]}!`}</h3>
+            <p>{eventInfo ? `Sua presença já está confirmada${singleConfirmedEvent ? ` na ${confirmedEventLabel}` : ' nos eventos do seu convite'}. Você pode voltar aqui quando quiser: basta informar seu nome e a palavra-chave do convite para consultar os detalhes, sem confirmar novamente.` : found.guest.status === 'confirmed' ? 'Sua presença está confirmada nos eventos indicados abaixo. Vamos adorar celebrar com você!' : 'Recebemos seu carinho. Obrigado por nos avisar — você estará em nossos pensamentos.'}</p>
             <div className="response-receipt"><strong>{found.guest.full_name}</strong><span>{found.guest.invited_to_celebration && `Celebração: ${displayStatus[found.guest.celebration_status]}`}{found.guest.invited_to_celebration && found.guest.invited_to_ceremony ? ' · ' : ''}{found.guest.invited_to_ceremony && `Cerimônia: ${displayStatus[found.guest.ceremony_status]}`}</span></div>
             <div className="success-petals" aria-hidden="true">{Array.from({ length: 10 }, (_, i) => <i key={i} style={{ '--petal-index': i } as React.CSSProperties}>✦</i>)}</div>
-            {!deadlinePassed && <button className="text-button" onClick={() => { setSuccess(false); setNotice('') }}>Editar minha resposta</button>}
+            {!eventInfo && !deadlinePassed && <button className="text-button" onClick={() => { setSuccess(false); setNotice('') }}>Editar minha resposta</button>}
           </div> : found ? <div className="found-state">
             <span className="eyebrow">CONVITE ENCONTRADO</span><h3 ref={resultHeading} tabIndex={-1}>Olá, {found.guest.full_name.split(' ')[0]}!</h3>
             <p className="guest-identity">Convite de <strong>{found.guest.full_name}</strong></p>
@@ -142,9 +146,9 @@ export default function PublicPage({ settings, onEnterAdmin, lookupGuest, answer
             <label className="field-label" htmlFor="guest-name">Seu nome completo</label>
             <div className="input-wrap"><Users size={18} /><input autoComplete="name" autoCapitalize="words" autoCorrect="off" enterKeyHint="next" id="guest-name" aria-describedby="guest-name-help" disabled={busy} value={name} onChange={e => { setName(e.target.value); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Nome como foi cadastrado pelos noivos" required minLength={3} maxLength={160} /></div>
             <p className="lookup-help" id="guest-name-help">Use o nome completo ou o nome alternativo cadastrado.</p>
-            <label className="field-label" htmlFor="invite-keyword">Palavra-chave do convite</label>
+            <label className="field-label" htmlFor="invite-keyword">Senha / palavra-chave do convite</label>
             <div className="input-wrap"><ShieldCheck size={18} /><input id="invite-keyword" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="search" aria-describedby="invite-keyword-help" disabled={busy} value={keyword} onChange={e => { setKeyword(e.target.value); setFound(null); setSuccess(false); setAmbiguous(false); setLast4(''); setNotice('') }} placeholder="Digite a palavra-chave recebida" required maxLength={100} /></div>
-            <p className="lookup-help" id="invite-keyword-help">Você encontra essa palavra no convite que recebeu.</p>
+            <p className="lookup-help" id="invite-keyword-help">Use a senha ou palavra-chave que recebeu no convite. Se já confirmou presença, ela também permite consultar novamente as informações sem responder outra vez.</p>
             {ambiguous && <div className="disambiguation"><label className="field-label" htmlFor="last4">4 últimos números do telefone cadastrado</label><input id="last4" inputMode="numeric" autoComplete="off" autoFocus disabled={busy} required pattern="[0-9]{4}" minLength={4} maxLength={4} value={last4} onChange={e => setLast4(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" /></div>}
             {notice && <p className="form-notice" role="alert">{notice}</p>}
             <button className="button button--primary lookup-submit" disabled={busy}>{busy ? 'Buscando…' : 'Encontrar meu convite'}{busy ? <span className="leaf-loader"><Leaf size={17} /></span> : <ArrowRight size={17} />}</button>
@@ -155,17 +159,17 @@ export default function PublicPage({ settings, onEnterAdmin, lookupGuest, answer
       </section>
 
       {eventInfo && <section className="day-section section-pad" id="programacao">
-        <div className="section-kicker"><span className="eyebrow">UM DIA PARA GUARDAR</span><span className="section-number">02 / 04</span></div>
-        <div className="section-heading section-heading--left"><h2>Cada instante,<br /><em>uma memória.</em></h2><p>Estamos preparando tudo para celebrar ao seu lado.</p></div>
+        <div className="section-kicker"><span className="eyebrow">{singleConfirmedEvent ? `PROGRAMAÇÃO DA ${confirmedEventLabel.toUpperCase()}` : 'UM DIA PARA GUARDAR'}</span><span className="section-number">02 / 04</span></div>
+        <div className="section-heading section-heading--left"><h2>{singleConfirmedEvent ? <>Cada instante da<br /><em>{confirmedEventLabel}.</em></> : <>Cada instante,<br /><em>uma memória.</em></>}</h2><p>{singleConfirmedEvent ? `Os detalhes da ${confirmedEventLabel} estão reunidos abaixo.` : 'Estamos preparando tudo para celebrar ao seu lado.'}</p></div>
         <div className="timeline">
           {visibleSchedule.length ? visibleSchedule.map((item, i) => <article className="timeline-item" key={item.id ?? i}><span className="timeline-time">{item.time || '—'}</span><span className="timeline-dot"><span>✳</span></span><div><h3>{item.title}</h3><p>{item.description}</p></div><span className="timeline-icon">{item.icon === 'glass' ? '◌' : item.icon === 'music' ? '♫' : '♡'}</span></article>) : <div className="empty-public"><span>✳</span><p>Em breve, mais informações por aqui.</p></div>}
         </div>
       </section>}
 
       {eventInfo && <section className="venue-section section-pad" id="local">
-        <div className="section-kicker"><span className="eyebrow">ONDE VAMOS NOS ENCONTRAR</span><span className="section-number">03 / 04</span></div>
+        <div className="section-kicker"><span className="eyebrow">{singleConfirmedEvent ? `LOCAL DA ${confirmedEventLabel.toUpperCase()}` : 'ONDE VAMOS NOS ENCONTRAR'}</span><span className="section-number">03 / 04</span></div>
         <div className="venue-layout">
-          <div className="section-heading section-heading--left"><h2>Um lugar<br />especial para <em>nós.</em></h2><p>Escolhemos cada detalhe pensando em dividir esse momento com você.</p></div>
+          <div className="section-heading section-heading--left"><h2>{singleConfirmedEvent ? <>O lugar da<br /><em>{confirmedEventLabel}.</em></> : <>Um lugar<br />especial para <em>nós.</em></>}</h2><p>{singleConfirmedEvent ? `Aqui estão o endereço e as orientações da ${confirmedEventLabel}.` : 'Escolhemos cada detalhe pensando em dividir esse momento com você.'}</p></div>
           <div className="venue-cards">{visibleVenues.length ? visibleVenues.map((venue, i) => <article className="venue-card" key={`${venue.name}-${i}`}>
             {venue.photo_url && <div className="venue-photo-public"><img src={venue.photo_url} alt={`Foto de ${venue.name}`} loading="lazy" /></div>}<div className="venue-map">{venue.address ? <iframe title={`Mapa de ${venue.name}`} loading="lazy" referrerPolicy="no-referrer" src={`https://maps.google.com/maps?q=${encodeURIComponent(venue.address)}&output=embed`} style={{ width: '100%', height: '100%', minHeight: 220, border: 0 }} /> : <span className="map-caption">Endereço em breve</span>}</div>
             <div className="venue-details"><span className="eyebrow">{venue.type || 'NOSSO LUGAR'}</span><h3>{venue.name}</h3><p>{venue.address}</p>{venue.notes && <p className="venue-notes">{venue.notes}</p>}
