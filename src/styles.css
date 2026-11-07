@@ -421,6 +421,7 @@ label > input, label > textarea, label > select { display: block; margin-top: 8p
 .venue-editor-card input, .venue-editor-card select, .venue-editor-card textarea, .settings-form input, .settings-form textarea { font-size: 11px; background: #fffefa; border-color: #dfe7d3; }
 .inline-switch { justify-self: start; }
 .settings-form { display: grid; gap: 24px; padding: 27px 28px 31px; }
+.account-logout { justify-self: start; margin: 0 28px 27px; gap: 8px; }
 .settings-lock { display: flex; align-items: center; gap: 6px; color: #a7b393; font-size: 8px; }
 .privacy-card { background: #f3f7ed; border-color: #e0e9d4; justify-content: space-between; }
 .privacy-card > div { display: flex; align-items: center; gap: 12px; max-width: 610px; }
