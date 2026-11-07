@@ -129,7 +129,7 @@ const invalidInputs = [
   ['invalid last four digits', { ...lookup, last4: '1a34' }],
   ['incomplete last four digits', { ...lookup, last4: '123' }],
   ['invalid token', { ...answer, token: 'invalid' }],
-  ['invalid answer status', { ...answer, status: 'pending' }],
+  ['invalid answer status', { ...answer, responses: { celebration: 'pending', ceremony: 'confirmed' } }],
   ['oversized message', { ...answer, message: 'A'.repeat(501) }],
   ['invalid message type', { ...answer, message: { invalid: true } }],
 ]
