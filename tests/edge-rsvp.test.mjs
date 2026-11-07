@@ -17,7 +17,7 @@ const origin = 'https://vinicius-calegari.github.io'
 const endpoint = 'https://example.invalid/functions/v1/public-rsvp'
 const serviceKey = 'test-service-key-must-never-be-returned'
 const lookup = { action: 'lookup', name: 'Pessoa Sintetica do Teste', keyword: 'fixture-phrase', last4: '' }
-const answer = { action: 'answer', token: 'A'.repeat(43), status: 'confirmed', message: null, keyword: 'fixture-phrase' }
+const answer = { action: 'answer', token: 'A'.repeat(43), responses: { celebration: 'confirmed', ceremony: 'confirmed' }, message: null, keyword: 'fixture-phrase' }
 const sha256 = value => createHash('sha256').update(value).digest('hex')
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -206,7 +206,7 @@ test('Edge answer performs one write RPC without replaying it', async () => {
   assert.deepEqual(await response.json(), { ok: true })
   assert.equal(requests.length, 1)
   assertTelemetry(response, logs, 'answer', 200)
-  assert.deepEqual(JSON.parse(requests[0][1].body).p_payload, { token_hash: sha256(answer.token), status: 'confirmed', message: null })
+  assert.deepEqual(JSON.parse(requests[0][1].body).p_payload, { token_hash: sha256(answer.token), responses: { celebration: 'confirmed', ceremony: 'confirmed' }, message: null })
   assertPrivateLogs(logs)
 })
 
