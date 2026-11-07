@@ -195,7 +195,7 @@ function AdminShell({ profile, signOut, data, published, persistGuest, importGue
   function updateVenue(i: number, patch: Partial<Venue>) { changeDraft('venues', draft.venues.map((item, index) => index === i ? { ...item, ...patch } : item)) }
   async function uploadVenuePhoto(i: number, file?: File) {
     if (!file) return
-    if (!file.type.startsWith('image/')) { toast('Selecione um arquivo de imagem.'); return }
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) { toast('Use uma imagem JPG, PNG, WebP ou AVIF.'); return }
     if (file.size > 8 * 1024 * 1024) { toast('A foto deve ter no máximo 8 MB.'); return }
     if (!supabase) { toast('Conexão indisponível.'); return }
     setUploadingVenue(i)
