@@ -57,7 +57,7 @@ export default function App() {
   const lookupGuest = async (name: string, last4: string, keyword: string, signal: AbortSignal) => {
     const result = await invokePublic({ action: 'lookup', name: name.trim(), last4, keyword: keyword.trim() }, signal)
     if (result?.ambiguous) return { ambiguous: true as const }
-    return result?.guest && result?.token ? { guest: result.guest, token: result.token } : null
+    return result?.guest && result?.token ? { guest: result.guest, token: result.token, event_info: result.event_info ?? null } : null
   }
   const answerGuest = async (token: string, _guestId: string, responses: { celebration?: Status; ceremony?: Status }, message: string | null, keyword: string): Promise<EventInfo | null> => { const result = await invokePublic({ action: 'answer', token, responses, message, keyword: keyword.trim() }); if (!result?.ok) throw new Error('A resposta não foi registrada. Tente novamente.'); return result.event_info ?? null }
 
