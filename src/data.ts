@@ -8,6 +8,8 @@ export type Guest = {
   alt_name: string
   side: Side
   phone: string
+  invited_to_celebration: boolean
+  invited_to_ceremony: boolean
   status: Status
   confirmed_at: string | null
   notes: string
