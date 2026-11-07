@@ -1,7 +1,7 @@
 import { Component, lazy, Suspense, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { DEFAULT_SETTINGS, hydrateSettings } from './data'
-import type { Status, WeddingSettings } from './data'
+import type { EventInfo, Guest, Status, WeddingSettings } from './data'
 import PublicPage from './PublicPage'
 import { BrandMark, isPanel, navigate } from './sharedUi'
 import { publicPost } from './publicApi'
@@ -44,7 +44,7 @@ export default function App() {
   }, [isAdminRoute])
 
   async function invokePublic(body: Record<string, unknown>, signal?: AbortSignal) {
-    return publicPost<{ ok?: boolean; ambiguous?: boolean; guest?: { id: string; full_name: string; status: Status }; token?: string }>('functions/v1/public-rsvp', body, {
+    return publicPost<{ ok?: boolean; ambiguous?: boolean; guest?: Pick<Guest, 'id' | 'full_name' | 'status' | 'invited_to_celebration' | 'invited_to_ceremony' | 'celebration_status' | 'ceremony_status'>; event_info?: EventInfo | null; token?: string }>('functions/v1/public-rsvp', body, {
       signal,
       timeoutMs: body.action === 'activate' ? 30000 : 15000,
       timeoutMessage: body.action === 'answer'
@@ -59,7 +59,7 @@ export default function App() {
     if (result?.ambiguous) return { ambiguous: true as const }
     return result?.guest && result?.token ? { guest: result.guest, token: result.token } : null
   }
-  const answerGuest = async (token: string, _guestId: string, status: Status, message: string | null, keyword: string) => { const result = await invokePublic({ action: 'answer', token, status, message, keyword: keyword.trim() }); if (!result?.ok) throw new Error('A resposta não foi registrada. Tente novamente.') }
+  const answerGuest = async (token: string, _guestId: string, responses: { celebration?: Status; ceremony?: Status }, message: string | null, keyword: string): Promise<EventInfo | null> => { const result = await invokePublic({ action: 'answer', token, responses, message, keyword: keyword.trim() }); if (!result?.ok) throw new Error('A resposta não foi registrada. Tente novamente.'); return result.event_info ?? null }
 
 
   if (isAdminRoute) return <AdminLoadBoundary><Suspense fallback={<Loading />}><AdminApp /></Suspense></AdminLoadBoundary>
