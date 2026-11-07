@@ -96,10 +96,12 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "answer") {
       if (typeof body.token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(body.token)) return json({ error: "Sua sessão expirou. Busque seu nome novamente." }, 400);
-      if (!["confirmed", "declined"].includes(String(body.status))) return json({ error: "Escolha uma resposta válida." }, 400);
+      if (!body.responses || typeof body.responses !== "object" || Array.isArray(body.responses)) return json({ error: "Informe sua resposta para cada evento do convite." }, 400);
+      const responseEntries = Object.entries(body.responses as Record<string, unknown>);
+      if (responseEntries.some(([event, status]) => !["celebration", "ceremony"].includes(event) || !["confirmed", "declined"].includes(String(status)))) return json({ error: "Escolha uma resposta válida para cada evento." }, 400);
       if (body.message !== null && (typeof body.message !== "string" || body.message.length > 500)) return json({ error: "O recado deve ter no máximo 500 caracteres." }, 400);
       const result = await rpc("rsvp_request", { p_action: action, p_fingerprint: fingerprint, p_keyword_hash: keywordHash,
-        p_payload: { token_hash: await hash(body.token), status: body.status, message: body.message ?? null } }, timings);
+        p_payload: { token_hash: await hash(body.token), responses: body.responses, message: body.message ?? null } }, timings);
       const { http_status = 200, ...payload } = result;
       return json(payload, http_status);
     }
@@ -132,3 +134,4 @@ Deno.serve(async (req: Request) => {
       : "Não foi possível concluir agora. Tente novamente em instantes." }, 503);
   }
 });
+
