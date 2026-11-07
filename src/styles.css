@@ -1064,3 +1064,13 @@ select, .button, .admin-app .button, .text-button, .nav-rsvp,
 .venue-photo-public { height: 230px; overflow: hidden; background: #edf0e6; }
 .venue-photo-public img { display: block; width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 640px) { .venue-photo-public { height: 190px; } }
+
+.invitation-file-editor { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; border:1px solid #dfe7d3; border-radius:5px; background:#fbfcf7; }
+.invitation-file-editor > div:first-child { display:grid; gap:6px; }
+.invitation-file-editor strong { color:#596b43; font-size:12px; }
+.invitation-file-editor small { color:var(--muted); font-size:10px; }
+.invitation-file-name { display:flex; align-items:center; gap:7px; color:#667b4e; font-size:11px; }
+.invitation-file-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.invitation-file-actions label { position:relative; overflow:hidden; cursor:pointer; }
+.invitation-file-actions input[type="file"] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+@media (max-width:640px) { .invitation-file-editor { align-items:flex-start; flex-direction:column; } }
